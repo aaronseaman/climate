@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Between Us</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="screen active" id="homeScreen">
+      <div class="brand-mark">BU</div>
+      <p class="eyebrow">A game for two</p>
+      <h1>Between Us</h1>
+      <p class="subtitle">Pass one phone back and forth. Guess, reveal, laugh, and learn something new.</p>
+
+      <div class="card setup-card">
+        <label>
+          Player 1
+          <input id="player1Input" maxlength="16" value="Alex" autocomplete="off" />
+        </label>
+        <label>
+          Player 2
+          <input id="player2Input" maxlength="16" value="Sam" autocomplete="off" />
+        </label>
+        <label>
+          Rounds
+          <select id="roundsSelect">
+            <option value="6">6 — Quick</option>
+            <option value="10" selected>10 — Date Night</option>
+            <option value="16">16 — Deep Dive</option>
+          </select>
+        </label>
+      </div>
+
+      <button class="primary" id="startButton">Start game</button>
+      <button class="ghost" id="howToButton">How it works</button>
+    </section>
+
+    <section class="screen" id="howToScreen">
+      <button class="icon-button back-button" data-go="homeScreen" aria-label="Back">←</button>
+      <p class="eyebrow">How it works</p>
+      <h2>One phone. Two perspectives.</h2>
+      <div class="rules-grid">
+        <div class="rule"><span>1</span><p>A prompt asks one partner to predict the other.</p></div>
+        <div class="rule"><span>2</span><p>Hand over the phone. The other partner answers privately.</p></div>
+        <div class="rule"><span>3</span><p>Reveal both answers and decide if the guess deserves a point.</p></div>
+      </div>
+      <p class="note">No account, internet connection, or shared devices required.</p>
+      <button class="primary" data-go="homeScreen">Got it</button>
+    </section>
+
+    <section class="screen" id="passScreen">
+      <div class="scorebar">
+        <span id="passRoundLabel">Round 1 / 10</span>
+        <span id="passScoreLabel">0 – 0</span>
+      </div>
+      <div class="pass-wrap">
+        <div class="phone-icon">↻</div>
+        <p class="eyebrow">Pass the phone</p>
+        <h2 id="passTitle">Alex, your turn.</h2>
+        <p id="passText">Keep your answer secret until the reveal.</p>
+        <button class="primary" id="readyButton">I’m ready</button>
+      </div>
+    </section>
+
+    <section class="screen" id="questionScreen">
+      <div class="scorebar">
+        <span id="questionRoundLabel">Round 1 / 10</span>
+        <span id="questionScoreLabel">0 – 0</span>
+      </div>
+
+      <div class="category-pill" id="categoryPill">Sweet</div>
+      <p class="eyebrow" id="questionRole">Predict Sam</p>
+      <h2 id="questionText">Which tiny thing would instantly improve their day?</h2>
+
+      <div class="answer-list" id="answerList"></div>
+      <button class="primary" id="lockButton" disabled>Lock answer</button>
+    </section>
+
+    <section class="screen" id="revealScreen">
+      <div class="scorebar">
+        <span id="revealRoundLabel">Round 1 / 10</span>
+        <span id="revealScoreLabel">0 – 0</span>
+      </div>
+
+      <p class="eyebrow">Reveal</p>
+      <h2 id="revealQuestion">Question</h2>
+
+      <div class="comparison">
+        <div class="answer-card">
+          <small id="guessLabel">Alex guessed</small>
+          <strong id="guessAnswer">—</strong>
+        </div>
+        <div class="answer-card">
+          <small id="actualLabel">Sam answered</small>
+          <strong id="actualAnswer">—</strong>
+        </div>
+      </div>
+
+      <p class="judge-copy" id="judgeCopy">Did the guess match well enough?</p>
+      <div class="button-row">
+        <button class="secondary" id="noPointButton">Not quite</button>
+        <button class="primary" id="pointButton">Give point</button>
+      </div>
+    </section>
+
+    <section class="screen" id="finalScreen">
+      <p class="eyebrow">Final score</p>
+      <div class="final-score" id="finalScore">5 – 5</div>
+      <h2 id="finalTitle">Perfectly matched.</h2>
+      <p id="finalText">You two were surprisingly in sync.</p>
+      <div class="card recap-card" id="recapCard"></div>
+      <button class="primary" id="playAgainButton">Play again</button>
+      <button class="ghost" id="homeButton">Change players</button>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
