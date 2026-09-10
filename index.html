@@ -1,122 +1,925 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
-  <title>Between Us</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F5F7F5">
+<title>Atlas of a Changing World — Climate, Cost &amp; AI Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper-1:#F7F8F6;
+  --paper-2:#EFF3F0;
+  --panel:rgba(255,255,255,0.82);
+  --panel-solid:#ffffff;
+  --panel-border:rgba(20,45,45,0.09);
+  --ink:#122023;
+  --ink-dim:#5C6E70;
+  --ink-faint:#94A3A3;
+  --line:rgba(20,45,45,0.10);
+
+  --enso-hot:#E8542E;
+  --enso-cold:#1E6FE0;
+  --temp-lo:#F2E9C9;
+  --temp-hi:#D62828;
+  --sea:#0E9E92;
+  --land:#B9781E;
+  --cost:#1E9E5A;
+  --ai:#6D4FE0;
+
+  --radius:18px;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{
+  margin:0;padding:0;width:100%;height:100%;
+  background:var(--paper-1);
+  color:var(--ink);
+  font-family:'Space Grotesk',sans-serif;
+  overflow:hidden;
+  overscroll-behavior:none;
+  touch-action:manipulation;
+}
+body{
+  background:
+    radial-gradient(1100px 760px at 14% 10%, rgba(14,158,146,0.07), transparent 60%),
+    radial-gradient(900px 700px at 90% 92%, rgba(232,84,46,0.06), transparent 60%),
+    linear-gradient(170deg, var(--paper-1), var(--paper-2) 75%);
+}
+#app{position:fixed;inset:0;}
+#mapWrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+svg#map{width:100%;height:100%;display:block;}
+.landmass{fill:#DCE6E2; stroke:#C4D2CC; stroke-width:0.5; transition:fill .5s ease;}
+.landmass.interactive{cursor:pointer;}
+.landmass:hover{stroke:#122023; stroke-width:1;}
+.landmass.selected{stroke:#122023; stroke-width:1.4;}
+.graticule{fill:none; stroke:rgba(20,45,45,0.07); stroke-width:0.5;}
+.sphere{fill:url(#oceanGrad);}
+.marker{cursor:pointer;}
+.marker circle.pulse{opacity:0;}
+.marker.enabled circle.pulse{animation:pulse 2.6s ease-out infinite;}
+@keyframes pulse{ 0%{opacity:.45; r:5;} 100%{opacity:0; r:20;} }
+.marker text{
+  font-family:'Space Grotesk',sans-serif; font-size:7.5px; font-weight:600;
+  fill:var(--ink); paint-order:stroke; stroke:rgba(255,255,255,0.9); stroke-width:2.4px;
+  pointer-events:none;
+}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:absolute; top:calc(var(--safe-t) + 12px); left:calc(var(--safe-l) + 14px);
+  display:flex; align-items:center; gap:10px; z-index:20; pointer-events:none;
+}
+.brand{
+  pointer-events:auto; background:var(--panel); backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid var(--panel-border); border-radius:16px; padding:9px 16px 10px 14px;
+  display:flex; flex-direction:column; gap:1px; max-width:220px;
+  box-shadow:0 8px 24px rgba(20,45,45,0.05);
+}
+.brand .eyebrow{font-size:9px; color:var(--ink-faint); font-weight:600; letter-spacing:.03em;}
+.brand h1{font-family:'Fraunces',serif; font-weight:600; font-size:15px; line-height:1.08; margin:0; color:var(--ink); font-style:italic;}
+.statpod{
+  pointer-events:auto; background:var(--panel); backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid var(--panel-border); border-radius:16px; padding:8px 18px;
+  display:flex; flex-direction:column; align-items:flex-start; min-width:126px;
+  box-shadow:0 8px 24px rgba(20,45,45,0.05);
+}
+.statpod .label{font-size:9px; color:var(--ink-faint);}
+.statpod .value{font-family:'Fraunces',serif; font-size:22px; font-weight:600; line-height:1.15; color:var(--ink);}
+.statpod .sub{font-size:9.5px; color:var(--ink-dim); margin-top:1px;}
+
+.infoBtn{
+  pointer-events:auto; position:absolute; top:calc(var(--safe-t) + 12px); right:calc(var(--safe-r) + 14px);
+  width:36px; height:36px; border-radius:50%; background:var(--panel); border:1px solid var(--panel-border);
+  backdrop-filter:blur(18px); color:var(--ink); font-family:'Fraunces',serif; font-style:italic; font-size:16px;
+  display:flex; align-items:center; justify-content:center; z-index:21; box-shadow:0 8px 24px rgba(20,45,45,0.05);
+}
+
+/* ---------- Right dock ---------- */
+.dock{ position:absolute; right:calc(var(--safe-r) + 12px); top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:6px; z-index:20; }
+.dock button{
+  pointer-events:auto; width:46px; height:46px; border-radius:13px; background:var(--panel); border:1px solid var(--panel-border);
+  backdrop-filter:blur(18px) saturate(160%); color:var(--ink-dim); display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; font-family:'Space Grotesk',sans-serif; font-size:7.3px; font-weight:600; letter-spacing:.01em;
+  transition:all .2s ease; box-shadow:0 6px 16px rgba(20,45,45,0.05);
+}
+.dock button svg{width:16.5px;height:16.5px;stroke:currentColor;fill:none;stroke-width:1.7;}
+.dock button.active{ background:var(--accent-bg, #122023); color:#fff; border-color:transparent; }
+.dock button.active svg{stroke:#fff;}
+.dock button.predictBtn{ background:linear-gradient(135deg,#122023,#233d3f); color:#fff; margin-top:6px;}
+.dock button.predictBtn svg{stroke:#fff;}
+
+/* ---------- Bottom control bar ---------- */
+.controls{
+  position:absolute; left:calc(var(--safe-l) + 14px); right:calc(var(--safe-r) + 70px);
+  bottom:calc(var(--safe-b) + 12px); z-index:20;
+  background:var(--panel); backdrop-filter:blur(18px) saturate(160%); border:1px solid var(--panel-border);
+  border-radius:var(--radius); padding:10px 16px 11px; pointer-events:auto;
+  box-shadow:0 10px 30px rgba(20,45,45,0.06);
+}
+.controls .row1{display:flex; align-items:baseline; justify-content:space-between; gap:10px;}
+.controls .modeName{font-family:'Fraunces',serif; font-style:italic; font-size:13px; color:var(--ink);}
+.controls .modeDesc{font-size:9.8px; color:var(--ink-faint); max-width:56%; text-align:right; line-height:1.3;}
+.sliderRow{display:flex; align-items:center; gap:10px; margin-top:7px;}
+.sliderRow input[type=range]{ -webkit-appearance:none; appearance:none; flex:1; height:5px; border-radius:4px; background:#E3E9E6; outline:none; }
+.sliderRow input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff;
+  border:3px solid var(--accent-bg,#122023); box-shadow:0 2px 6px rgba(20,45,45,0.35);
+}
+.sliderVal{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px; width:64px; text-align:center; background:#EEF2EF; border-radius:8px; padding:4px 2px;}
+.legend{display:flex; align-items:center; gap:6px; margin-top:9px;}
+.legendBar{flex:1; height:7px; border-radius:5px;}
+.legendLabels{display:flex; justify-content:space-between; font-size:8.5px; color:var(--ink-faint); margin-top:3px;}
+
+/* ---------- Detail sheet ---------- */
+.sheet{
+  position:absolute; left:calc(var(--safe-l) + 14px); top:calc(var(--safe-t) + 64px);
+  width:min(300px, 34vw); max-height:64vh; overflow-y:auto;
+  background:var(--panel); backdrop-filter:blur(20px) saturate(170%); border:1px solid var(--panel-border);
+  border-radius:var(--radius); padding:15px 16px 16px; z-index:19;
+  transform:translateX(-120%) scale(.96); opacity:0; transition:transform .35s cubic-bezier(.2,.9,.25,1), opacity .3s;
+  pointer-events:none; box-shadow:0 16px 40px rgba(20,45,45,0.10);
+}
+.sheet.open{transform:translateX(0) scale(1); opacity:1; pointer-events:auto;}
+.sheet .close{position:absolute; top:10px; right:12px; color:var(--ink-faint); font-size:17px; line-height:1; background:none; border:none;}
+.sheet h2{font-family:'Fraunces',serif; font-weight:600; font-size:18px; margin:0 0 2px; padding-right:20px; color:var(--ink);}
+.sheet .tag{display:inline-block; font-size:9.5px; padding:2px 8px; border-radius:20px; margin-bottom:9px; font-weight:600;}
+.sheet dl{margin:0; display:grid; grid-template-columns:auto auto; gap:5px 10px;}
+.sheet dt{font-size:9.8px; color:var(--ink-faint);}
+.sheet dd{margin:0; font-size:12px; font-weight:700; text-align:right; color:var(--ink);}
+.sheet p{font-size:11.3px; line-height:1.5; color:var(--ink-dim); margin:10px 0 0;}
+.sheet .miniList{margin:8px 0 0; padding:0; list-style:none;}
+.sheet .miniList li{display:flex; justify-content:space-between; gap:8px; font-size:10.8px; padding:5px 0; border-bottom:1px solid var(--line); color:var(--ink-dim);}
+.sheet .miniList li b{color:var(--ink); font-weight:700;}
+.sheet .cite{font-size:9.3px; color:var(--ink-faint); margin-top:9px; border-top:1px solid var(--line); padding-top:8px; line-height:1.4;}
+
+/* ---------- Modal (sources + predictor) ---------- */
+.modalBg{
+  position:absolute; inset:0; background:rgba(15,30,30,0.35); backdrop-filter:blur(6px);
+  z-index:30; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.modalBg.open{opacity:1; pointer-events:auto;}
+.modal{
+  width:min(680px,90vw); max-height:86vh; overflow-y:auto;
+  background:#FFFFFF; border:1px solid var(--panel-border); border-radius:22px; padding:22px 26px 26px;
+  box-shadow:0 30px 70px rgba(20,45,45,0.20);
+}
+.modal h2{font-family:'Fraunces',serif; font-style:italic; font-weight:600; font-size:21px; margin:0 0 4px; color:var(--ink);}
+.modal .lead{font-size:11.5px; color:var(--ink-dim); margin-bottom:14px; line-height:1.5;}
+.modal h3{font-size:10.5px; letter-spacing:.02em; color:var(--enso-hot); margin:15px 0 6px; font-weight:700;}
+.modal ul{margin:0; padding-left:17px;} .modal li{font-size:11px; color:var(--ink-dim); line-height:1.5; margin-bottom:5px;}
+.modal .closeModal{ margin-top:16px; width:100%; padding:11px; border-radius:12px; border:1px solid var(--panel-border); background:var(--paper-2); color:var(--ink); font-weight:700; font-size:12.5px;}
+
+/* ---------- Predictor ---------- */
+.predictGrid{display:flex; flex-direction:column; gap:14px; margin-top:6px;}
+.predictInput{background:var(--paper-2); border-radius:14px; padding:12px 14px;}
+.predictInput .lbl{display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; color:var(--ink); margin-bottom:6px;}
+.predictInput .lbl span:last-child{color:var(--ai); font-family:'Space Grotesk',sans-serif;}
+.predictInput input[type=range]{width:100%; -webkit-appearance:none; appearance:none; height:5px; border-radius:4px; background:#DCE4E1; outline:none;}
+.predictInput input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid var(--ai); box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.predictOut{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;}
+.outCard{background:#fff; border:1px solid var(--panel-border); border-radius:14px; padding:12px 13px; box-shadow:0 4px 14px rgba(20,45,45,0.05);}
+.outCard .k{font-size:9.5px; color:var(--ink-faint); font-weight:600;}
+.outCard .v{font-family:'Fraunces',serif; font-size:19px; font-weight:600; margin:2px 0; color:var(--ink);}
+.outCard .n{font-size:9.8px; color:var(--ink-dim); line-height:1.35;}
+.disclaimer{background:#FBF3E4; border:1px solid #EBD9AE; border-radius:12px; padding:10px 13px; font-size:10.3px; color:#6B5320; line-height:1.5; margin-top:4px;}
+
+/* ---------- Intro ---------- */
+#intro{ position:absolute; inset:0; z-index:40; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(170deg, var(--paper-1), var(--paper-2) 75%); transition:opacity .6s ease, visibility .6s;}
+#intro.hide{opacity:0; visibility:hidden;}
+.introCard{text-align:center; padding:0 30px; max-width:580px;}
+.introCard .kicker{font-size:10.5px; letter-spacing:.07em; color:var(--sea); margin-bottom:10px; font-weight:700;}
+.introCard h1{font-family:'Fraunces',serif; font-style:italic; font-weight:600; font-size:clamp(24px,4.2vw,38px); line-height:1.08; margin:0 0 14px; color:var(--ink);}
+.introCard p{font-size:12.5px; color:var(--ink-dim); line-height:1.6; margin:0 auto 22px; max-width:440px;}
+.introCard button{padding:13px 30px; border-radius:30px; border:none; background:var(--ink); color:#fff; font-weight:700; font-size:13px; font-family:'Space Grotesk',sans-serif;}
+.rotateHint{position:absolute; inset:0; z-index:50; background:var(--paper-1); display:none; align-items:center; justify-content:center; text-align:center; flex-direction:column; gap:14px; padding:30px;}
+@media (orientation:portrait) and (max-width:900px){ .rotateHint{display:flex;} }
+.rotateHint .icon{font-size:38px;}
+.rotateHint p{font-family:'Fraunces',serif; font-style:italic; font-size:17px; color:var(--ink); max-width:280px; line-height:1.4;}
+
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-thumb{background:#C8D2CE; border-radius:4px;}
+
+@media (max-width:760px){
+  .brand{max-width:140px; padding:7px 12px 8px;} .brand h1{font-size:12.5px;}
+  .statpod{padding:6px 12px; min-width:92px;} .statpod .value{font-size:17px;}
+  .dock button{width:40px; height:40px; font-size:6.6px;} .dock button svg{width:14px;height:14px;}
+  .controls{right:calc(var(--safe-r) + 58px); padding:8px 12px 9px;} .controls .modeDesc{display:none;}
+  .sheet{width:min(250px,42vw); top:calc(var(--safe-t) + 54px);}
+  .predictOut{grid-template-columns:1fr;}
+}
+</style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="screen active" id="homeScreen">
-      <div class="brand-mark">BU</div>
-      <p class="eyebrow">A game for two</p>
-      <h1>Between Us</h1>
-      <p class="subtitle">Pass one phone back and forth. Guess, reveal, laugh, and learn something new.</p>
+<div class="rotateHint"><div class="icon">⤾</div><p>Rotate your iPhone to landscape<br>to open the atlas</p></div>
 
-      <div class="card setup-card">
-        <label>
-          Player 1
-          <input id="player1Input" maxlength="16" value="Alex" autocomplete="off" />
-        </label>
-        <label>
-          Player 2
-          <input id="player2Input" maxlength="16" value="Sam" autocomplete="off" />
-        </label>
-        <label>
-          Rounds
-          <select id="roundsSelect">
-            <option value="6">6 — Quick</option>
-            <option value="10" selected>10 — Date Night</option>
-            <option value="16">16 — Deep Dive</option>
-          </select>
-        </label>
-      </div>
+<div id="app">
+  <div id="intro">
+    <div class="introCard">
+      <div class="kicker">A DATA ATLAS · NOAA · NASA · IPCC AR6 · UNCCD · FAO · WEF · GOLDMAN SACHS · LANCET COUNTDOWN</div>
+      <h1>The world, redrawn by<br>climate and automation.</h1>
+      <p>Explore documented El Niño &amp; La Niña strength, temperature and sea-level rise, land degradation, the economic cost of climate disasters, and which jobs are most exposed to AI — then run your own scenario in the predictor. Every figure is sourced.</p>
+      <button id="enterBtn">Open the Atlas →</button>
+    </div>
+  </div>
 
-      <button class="primary" id="startButton">Start game</button>
-      <button class="ghost" id="howToButton">How it works</button>
-    </section>
+  <div id="mapWrap">
+    <svg id="map" viewBox="0 0 1600 760" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <radialGradient id="oceanGrad" cx="35%" cy="28%" r="85%">
+          <stop offset="0%" stop-color="#EAF3F3"/>
+          <stop offset="100%" stop-color="#D6E6E4"/>
+        </radialGradient>
+      </defs>
+    </svg>
+  </div>
 
-    <section class="screen" id="howToScreen">
-      <button class="icon-button back-button" data-go="homeScreen" aria-label="Back">←</button>
-      <p class="eyebrow">How it works</p>
-      <h2>One phone. Two perspectives.</h2>
-      <div class="rules-grid">
-        <div class="rule"><span>1</span><p>A prompt asks one partner to predict the other.</p></div>
-        <div class="rule"><span>2</span><p>Hand over the phone. The other partner answers privately.</p></div>
-        <div class="rule"><span>3</span><p>Reveal both answers and decide if the guess deserves a point.</p></div>
-      </div>
-      <p class="note">No account, internet connection, or shared devices required.</p>
-      <button class="primary" data-go="homeScreen">Got it</button>
-    </section>
+  <div class="topbar">
+    <div class="brand">
+      <div class="eyebrow">CLIMATE + AI ATLAS</div>
+      <h1 id="modeTitle">El Niño / La Niña</h1>
+    </div>
+    <div class="statpod">
+      <div class="label" id="statLabel">Niño 3.4 anomaly</div>
+      <div class="value" id="statValue">+2.0 SD</div>
+      <div class="sub" id="statSub">≈ +1.0°C · Strong El Niño</div>
+    </div>
+  </div>
 
-    <section class="screen" id="passScreen">
-      <div class="scorebar">
-        <span id="passRoundLabel">Round 1 / 10</span>
-        <span id="passScoreLabel">0 – 0</span>
-      </div>
-      <div class="pass-wrap">
-        <div class="phone-icon">↻</div>
-        <p class="eyebrow">Pass the phone</p>
-        <h2 id="passTitle">Alex, your turn.</h2>
-        <p id="passText">Keep your answer secret until the reveal.</p>
-        <button class="primary" id="readyButton">I’m ready</button>
-      </div>
-    </section>
+  <button class="infoBtn" id="infoBtn">i</button>
 
-    <section class="screen" id="questionScreen">
-      <div class="scorebar">
-        <span id="questionRoundLabel">Round 1 / 10</span>
-        <span id="questionScoreLabel">0 – 0</span>
-      </div>
+  <div class="dock" id="dock">
+    <button data-mode="enso" class="active">
+      <svg viewBox="0 0 24 24"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/><path d="M2 18c2-4 4-4 6 0s4 4 6 0 4-4 6 0" opacity=".5"/></svg>
+      ENSO
+    </button>
+    <button data-mode="temp">
+      <svg viewBox="0 0 24 24"><path d="M12 2v13"/><circle cx="12" cy="18" r="3.2"/><path d="M9 5h6M9 8h6M9 11h6"/></svg>
+      TEMP
+    </button>
+    <button data-mode="sea">
+      <svg viewBox="0 0 24 24"><path d="M2 16c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0" /><path d="M2 20c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0" opacity=".5"/><path d="M12 3v9"/></svg>
+      SEA
+    </button>
+    <button data-mode="land">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M4 14h16M7 18h10M6 10h5M14 8h4"/></svg>
+      LAND
+    </button>
+    <button data-mode="cost">
+      <svg viewBox="0 0 24 24"><path d="M12 2v20M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5 2.2 3 5 3.5 5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5"/></svg>
+      COST
+    </button>
+    <button data-mode="ai">
+      <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.5 4.5l2 2M17.5 17.5l2 2M19.5 4.5l-2 2M6.5 17.5l-2 2"/></svg>
+      AI
+    </button>
+    <button class="predictBtn" id="predictBtn">
+      <svg viewBox="0 0 24 24"><path d="M4 19h16M4 19l5-8 4 3 4-9 3 5"/></svg>
+      PREDICT
+    </button>
+  </div>
 
-      <div class="category-pill" id="categoryPill">Sweet</div>
-      <p class="eyebrow" id="questionRole">Predict Sam</p>
-      <h2 id="questionText">Which tiny thing would instantly improve their day?</h2>
+  <div class="controls" id="controls">
+    <div class="row1">
+      <div class="modeName" id="ctrlTitle">Standard deviations from the Niño 3.4 mean</div>
+      <div class="modeDesc" id="ctrlDesc">Drag to move through El Niño / La Niña history — up to ±6 SD, calibrated to NOAA's category thresholds.</div>
+    </div>
+    <div class="sliderRow">
+      <span style="font-size:9.5px;color:var(--ink-faint)" id="sliderMinLbl">−6 SD</span>
+      <input type="range" id="mainSlider" min="-6" max="6" step="0.1" value="4">
+      <span style="font-size:9.5px;color:var(--ink-faint)" id="sliderMaxLbl">+6 SD</span>
+      <div class="sliderVal" id="sliderVal">+4.0</div>
+    </div>
+    <div class="legend">
+      <span style="font-size:8.5px;color:var(--ink-faint)" id="legLeft">La Niña</span>
+      <div class="legendBar" id="legendBar" style="background:linear-gradient(90deg,#1E6FE0,#E7ECE9,#E8542E)"></div>
+      <span style="font-size:8.5px;color:var(--ink-faint)" id="legRight">El Niño</span>
+    </div>
+  </div>
 
-      <div class="answer-list" id="answerList"></div>
-      <button class="primary" id="lockButton" disabled>Lock answer</button>
-    </section>
+  <div class="sheet" id="sheet">
+    <button class="close" id="sheetClose">✕</button>
+    <span class="tag" id="sheetTag">REGION</span>
+    <h2 id="sheetTitle">—</h2>
+    <dl id="sheetStats"></dl>
+    <ul class="miniList" id="sheetList"></ul>
+    <p id="sheetText"></p>
+    <div class="cite" id="sheetCite"></div>
+  </div>
 
-    <section class="screen" id="revealScreen">
-      <div class="scorebar">
-        <span id="revealRoundLabel">Round 1 / 10</span>
-        <span id="revealScoreLabel">0 – 0</span>
-      </div>
+  <div class="modalBg" id="modalBg">
+    <div class="modal" id="sourcesModal">
+      <h2>Sources &amp; methodology</h2>
+      <p class="lead">Every figure below traces to a named institutional source. Where the map renders a spatial <em>pattern</em> rather than a precise gridded dataset, or a scenario tool extrapolates from documented history, that is stated explicitly.</p>
 
-      <p class="eyebrow">Reveal</p>
-      <h2 id="revealQuestion">Question</h2>
+      <h3>ENSO / El Niño &amp; La Niña</h3>
+      <ul>
+        <li>NOAA Climate Prediction Center — Oceanic Niño Index (ONI), Niño 3.4 region; category thresholds: weak 0.5–0.9°C, moderate 1.0–1.4°C, strong 1.5–1.9°C, very strong ≥2.0°C.</li>
+        <li>Feb 2026: NOAA/NWS transitioned from ONI to the Relative Oceanic Niño Index (RONI), which subtracts the tropical-mean SST trend (NWS Public Information Statement 26-05).</li>
+        <li>Historic peaks: 1982–83 (RONI 2.69°C), 1997–98, 2015–16 (ONI ≈2.6°C). IRI's Aug 2026 outlook flagged the 2026–27 event as potentially record-breaking (Niño 3.4 ≥2.0–3.0°C across most models).</li>
+        <li>This atlas expresses intensity at a fixed 0.5°C-per-SD scale so NOAA's category bands land on whole units (1–4 SD); 5–6 SD extends the scale for exceptional events. This is the app's own display convention, not a published statistical SD.</li>
+        <li>Regional teleconnection shading follows NOAA/IRI's published ENSO impact composites.</li>
+      </ul>
 
-      <div class="comparison">
-        <div class="answer-card">
-          <small id="guessLabel">Alex guessed</small>
-          <strong id="guessAnswer">—</strong>
+      <h3>Global temperature</h3>
+      <ul>
+        <li>NASA GISS (GISTEMP v4): 2025 anomaly +1.19°C, 2024 +1.28°C (warmest on record), vs. the 1951–1980 baseline; every year since 2015 ranks among the ten warmest on record.</li>
+        <li>Polar amplification: Arctic warming has proceeded at roughly 3–4× the global average (NOAA Arctic Report Card; IPCC AR6 WGI Ch.2). The map's latitude gradient illustrates this documented ratio; it is not gridded satellite data.</li>
+      </ul>
+
+      <h3>Sea-level rise</h3>
+      <ul>
+        <li>IPCC AR6 (2021), vs. 1995–2014: by 2100, 0.28 m (SSP1-1.9) to 0.63–1.01 m (SSP5-8.5); a low-confidence ice-sheet-instability storyline allows "approaching 2 m by 2100 and 5 m by 2150" under very high emissions; by 2300, 0.3–3.1 m to 1.7–6.8 m.</li>
+        <li>Lancet Countdown 2020: 145–565 million people currently live in zones facing potential inundation from sea-level rise, depending on scenario.</li>
+        <li>Coastal markers flag documented low-elevation, high-exposure deltas and cities from IPCC AR6 WGII and NOAA/Climate Central low-elevation coastal-zone research — shown as risk zones, not a precise bathtub-flood model.</li>
+      </ul>
+
+      <h3>Land degradation &amp; desertification</h3>
+      <ul>
+        <li>UNCCD (2024): up to 40% of the planet's land is degraded, affecting roughly half of humanity and an estimated US$44 trillion of global GDP; at least 100 million hectares of healthy land lost every year, 2015–2019.</li>
+        <li>Droughts have grown 29% more frequent and severe since 2000 (UNCCD COP16, 2024).</li>
+        <li>FAO (2015) estimated 24% of global land was degraded between 1981–2003; the app interpolates a simple, clearly-labeled trend line between that figure and UNCCD's 2024 "up to 40%" figure — an illustrative interpolation between two survey points, not an annual dataset.</li>
+        <li>Regional hotspots drawn from UNCCD's Global Land Outlook 2 (2024).</li>
+      </ul>
+
+      <h3>Economic cost of climate &amp; weather disasters</h3>
+      <ul>
+        <li>NOAA NCEI Billion-Dollar Weather &amp; Climate Disasters (U.S., inflation-adjusted, 1980–2024): tropical cyclones total $1,543.2B (avg. $23.0B/event, 67 events, 7,211 deaths); severe storms $514.3B ($2.5B avg., 203 events — the most frequent type); drought $367.5B (assessed at seasonal/regional scale); inland flooding $203.0B ($4.7B avg., 45 events); Western wildfires alone exceeded $90B in 2017–2021 vs. $58B for all other wildfire events combined since 1980.</li>
+        <li>2024 U.S. total: 27 billion-dollar disasters, $182.7B in damage, 568 deaths — Hurricane Helene was the costliest single event.</li>
+        <li>Munich Re: global natural-catastrophe losses reached $320B in 2024 (fifth-costliest year since 1980), of which $140B was insured; weather-related events caused 93% of overall losses. 2024 named events: Hurricane Helene ~$56B, Hurricane Milton $38B ($25B insured), Valencia, Spain floods $11B (deadliest European natural disaster in 50 years).</li>
+        <li>Historic El Niño costs: 1997–98 caused an estimated $5.7T in cumulative global income loss over five years (Callahan &amp; Mankin, <em>Science</em>, 2023); a separate macroeconomic model attributes $2.1T (1997–98) and $3.9T (2015–16) in global losses (<em>Nature Communications</em>, 2023).</li>
+      </ul>
+
+      <h3>AI &amp; the labor market</h3>
+      <ul>
+        <li>World Economic Forum, Future of Jobs Report 2025: 92 million jobs displaced and 170 million created globally by 2030 (net +78 million; 22% structural churn across the 1.2 billion formal jobs surveyed, from 1,000+ employers across 55 economies).</li>
+        <li>Goldman Sachs Research: ~300 million full-time-equivalent jobs globally are exposed to generative AI; generative AI could raise global GDP by ~7% (~US$7 trillion) over 10 years; roughly 2.5% of U.S. employment faces direct displacement risk, 6–7% (~11 million workers) broader task-transformation risk.</li>
+        <li>IMF AI Preparedness Index: North America scores highest (0.74); Sub-Saharan Africa (0.34) and low-income countries generally (0.32) are the least prepared for the transition.</li>
+        <li>PwC 2025 Global AI Jobs Barometer: workers with AI skills earn a 56% wage premium over peers in the same role without them.</li>
+        <li>McKinsey (2025): up to 375 million workers globally (~14% of the global workforce) may need to switch occupational categories by 2030.</li>
+        <li>Occupation-level exposure scores: Wharton Budget Model 2025 AI-exposure dataset (784 occupations), as reported by EDsmart, Dec 2025; and the AgentLocker AI Jobs Automation Index, 2025. Lowest-exposure occupations: US Career Institute occupational analysis, 2025; Pew Research Center, as cited in DesignRush, 2026.</li>
+      </ul>
+
+      <h3>Health &amp; disease</h3>
+      <ul>
+        <li>Lancet Countdown 2024 report: climatic suitability for dengue transmission rose 46.3% (<em>Aedes albopictus</em>) and 10.7% (<em>Aedes aegypti</em>) between 1951–60 and 2014–23.</li>
+        <li>Lancet Countdown 2021 report: the number of months suitable for malaria transmission in densely populated highland areas of low-HDI countries rose 39% between 1950–59 and 2010–19.</li>
+        <li>Lancet Countdown 2020: global yield potential for major staple crops declined 1.8–5.6% between 1981 and 2019.</li>
+      </ul>
+
+      <h3>The Predictor tool</h3>
+      <ul>
+        <li>The predictor interpolates between the documented historical anchor points above (e.g. the 1997–98 and 2015–16 El Niño food-security and cost figures, UNCCD's land-loss rate, Lancet Countdown's disease-suitability trend) using a simple, transparent scaling function shown in full inside the tool.</li>
+        <li>It is an illustrative extrapolation for exploring how documented relationships might scale — <strong>not</strong> a climate, economic, or epidemiological forecast from a scientific model.</li>
+      </ul>
+
+      <p class="lead" style="margin-top:12px;">Base map: Natural Earth 1:110m via the <em>world-atlas</em> TopoJSON dataset, rendered client-side with D3.js. No user data is collected; everything ships inside this file.</p>
+      <button class="closeModal" id="closeModalBtn">Close</button>
+    </div>
+  </div>
+
+  <div class="modalBg" id="predictBg">
+    <div class="modal">
+      <h2>Scenario predictor</h2>
+      <p class="lead">Move the sliders to explore how documented climate relationships might scale. This interpolates between real historical anchor points (see Sources) — it is an illustrative tool, not a scientific forecast.</p>
+
+      <div class="predictGrid">
+        <div class="predictInput">
+          <div class="lbl"><span>El Niño / La Niña intensity</span><span id="pEnsoLbl">+4.0 SD</span></div>
+          <input type="range" id="pEnso" min="-6" max="6" step="0.1" value="4">
         </div>
-        <div class="answer-card">
-          <small id="actualLabel">Sam answered</small>
-          <strong id="actualAnswer">—</strong>
+        <div class="predictInput">
+          <div class="lbl"><span>Additional warming above today's +1.19°C</span><span id="pWarmLbl">+0.5°C</span></div>
+          <input type="range" id="pWarm" min="0" max="3" step="0.1" value="0.5">
         </div>
       </div>
 
-      <p class="judge-copy" id="judgeCopy">Did the guess match well enough?</p>
-      <div class="button-row">
-        <button class="secondary" id="noPointButton">Not quite</button>
-        <button class="primary" id="pointButton">Give point</button>
-      </div>
-    </section>
+      <div class="predictOut" id="predictOut"></div>
+      <div class="disclaimer">This tool linearly interpolates between named historical events and published trend lines (1997–98 &amp; 2015–16 El Niño impacts, UNCCD land-loss rates, Lancet Countdown disease-suitability trends, Munich Re annual disaster losses). It does not run a physical climate model, an epidemiological model, or a macroeconomic model — treat outputs as an order-of-magnitude illustration, not a prediction.</div>
+      <button class="closeModal" id="closePredictBtn">Close</button>
+    </div>
+  </div>
+</div>
 
-    <section class="screen" id="finalScreen">
-      <p class="eyebrow">Final score</p>
-      <div class="final-score" id="finalScore">5 – 5</div>
-      <h2 id="finalTitle">Perfectly matched.</h2>
-      <p id="finalText">You two were surprisingly in sync.</p>
-      <div class="card recap-card" id="recapCard"></div>
-      <button class="primary" id="playAgainButton">Play again</button>
-      <button class="ghost" id="homeButton">Change players</button>
-    </section>
-  </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script>
+/* =========================================================================
+   DATA — every field traces to a cited source (see the Sources modal).
+   ========================================================================= */
 
-  <script src="app.js"></script>
+const ENSO_ZONES = {
+  "Indonesia":"dry","Papua New Guinea":"dry","Australia":"dry","Philippines":"dry",
+  "Malaysia":"dry","Fiji":"dry","Vanuatu":"dry","Solomon Islands":"dry","Thailand":"dry",
+  "India":"dry-mon","Vietnam":"dry",
+  "South Africa":"dry","Zimbabwe":"dry","Zambia":"dry","Mozambique":"dry","Botswana":"dry",
+  "Namibia":"dry","Malawi":"dry",
+  "Mexico":"dry","Guatemala":"dry","Honduras":"dry","Nicaragua":"dry","El Salvador":"dry","Costa Rica":"dry",
+  "Ethiopia":"wet","Somalia":"wet","Kenya":"wet","Somaliland":"wet","Tanzania":"wet","Uganda":"wet",
+  "Peru":"wet","Ecuador":"wet",
+  "United States of America":"wet","Argentina":"wet","Uruguay":"wet","Paraguay":"wet","Bolivia":"wet",
+  "Canada":"warm",
+  "China":"mixed","Japan":"mixed","South Korea":"mixed",
+  "Brazil":"mixed"
+};
+const ENSO_LABEL = {
+  "dry":"Historically drier during El Niño","dry-mon":"Weakened monsoon during El Niño",
+  "wet":"Historically wetter / flood-prone during El Niño","warm":"Milder, warmer winters during El Niño",
+  "mixed":"Mixed regional signal (north/south split)"
+};
+const ENSO_NOTE = {
+  "dry":"Documented El Niño teleconnection: suppressed rainfall raises drought and wildfire risk. Pattern reverses in La Niña years.",
+  "dry-mon":"El Niño years are statistically associated with a weaker South Asian monsoon and below-normal Kharif harvests.",
+  "wet":"El Niño shifts the tropical rain belt toward this region, raising flood, landslide and waterborne-disease risk.",
+  "warm":"Northern Hemisphere El Niño winters trend milder and drier across much of this region.",
+  "mixed":"Effects vary sharply within the country — a single national colour cannot capture this."
+};
+
+const DESERT_HOTSPOTS = [
+  {name:"Sahel Belt", lat:15, lon:5, level:0.85, note:"Rapid dryland expansion across Niger, Mali, Chad and Burkina Faso; among UNCCD's most-cited degradation fronts."},
+  {name:"Horn of Africa", lat:7, lon:44, level:0.8, note:"Repeated multi-year droughts have pushed pastoral rangeland past recovery thresholds in Somalia, Ethiopia and Kenya."},
+  {name:"Aral Sea Basin", lat:45, lon:60, level:0.9, note:"One of the fastest human-driven desertification events on record, from Soviet-era irrigation diversion."},
+  {name:"North China Plain", lat:38, lon:113, level:0.65, note:"Cropland salinization and groundwater depletion are degrading one of the world's most intensive farming regions."},
+  {name:"US Southwest", lat:34, lon:-111, level:0.6, note:"Megadrought conditions since 2000 are among the most severe in the last 1,200 years of tree-ring records."},
+  {name:"Southern Australia", lat:-30, lon:135, level:0.55, note:"Outback aridification and recurring rangeland drought are expanding degraded zones inland."},
+  {name:"Patagonian Steppe", lat:-45, lon:-69, level:0.5, note:"Overgrazing-driven desertification affects a large share of Argentina's semi-arid steppe."},
+  {name:"Iran / Fertile Crescent", lat:32, lon:48, level:0.75, note:"Aridification and water stress are contracting historically fertile agricultural land."},
+  {name:"Thar / NW India", lat:27, lon:72, level:0.55, note:"One of the most densely populated drylands on Earth, under mounting groundwater and heat stress."},
+  {name:"Kalahari margins", lat:-22, lon:22, level:0.55, note:"Rangeland degradation is advancing along the Kalahari's semi-arid margins in Botswana and Namibia."}
+];
+
+const SEA_MARKERS = [
+  {name:"Ganges–Brahmaputra Delta", lat:22.5, lon:90.4, elevGate:0.5, pop:"~40M within the delta's low-lying zone", note:"One of the most sea-level-exposed deltas on Earth; IPCC AR6 flags Bangladesh's coast as extreme-risk under all SSPs."},
+  {name:"Netherlands (Randstad)", lat:52.1, lon:4.7, elevGate:1.0, pop:"~7M already below current sea level", note:"Roughly a quarter of the country already sits below sea level, managed via advanced flood defenses."},
+  {name:"Maldives", lat:3.2, lon:73.2, elevGate:0.3, pop:"~520K residents", note:"Average elevation ~1–1.5 m — the world's lowest-lying nation; existential risk even under low-emissions scenarios."},
+  {name:"Tuvalu / Kiribati", lat:-8.5, lon:179.2, elevGate:0.3, pop:"~120K combined", note:"Pacific atoll nations with land rarely exceeding 3 m elevation; among the first planning managed relocation."},
+  {name:"Nile Delta", lat:31.0, lon:31.2, elevGate:0.5, pop:"~40M in the delta region", note:"Subsidence compounds sea-level rise; IPCC flags this as among Africa's most exposed coastal populations."},
+  {name:"Miami / South Florida", lat:25.8, lon:-80.2, elevGate:1.0, pop:"~2.7M in Miami-Dade", note:"Porous limestone bedrock means sea walls cannot stop saltwater intrusion from below."},
+  {name:"Jakarta", lat:-6.2, lon:106.8, elevGate:1.0, pop:"~10M in the city proper", note:"Land subsidence up to 25cm/yr plus sea-level rise contributed to Indonesia relocating its capital."},
+  {name:"Mekong Delta", lat:9.8, lon:105.8, elevGate:0.5, pop:"~18M residents", note:"Vietnam's rice bowl; saltwater intrusion already reaches tens of km inland during dry-season low flow."},
+  {name:"Venice", lat:45.44, lon:12.33, elevGate:0.3, pop:"~50K historic-center residents", note:"The MOSE barrier buys time, but IPCC mid-range 2100 scenarios exceed its design envelope."},
+  {name:"Shanghai", lat:31.2, lon:121.5, elevGate:1.0, pop:"~24M metro residents", note:"Built largely on soft delta sediment; among the highest-value exposed assets of any coastal city."},
+  {name:"New Orleans", lat:29.95, lon:-90.07, elevGate:1.0, pop:"~380K city residents", note:"Much of the city already sits below sea level, reliant on continuous levee and pump infrastructure."},
+  {name:"Lagos", lat:6.45, lon:3.4, elevGate:0.5, pop:"~15M metro residents", note:"Rapid coastal urbanization is expanding exposure faster than adaptation infrastructure."}
+];
+
+const TEMP_SERIES = [
+  {y:1980,a:0.26},{y:1985,a:0.23},{y:1990,a:0.45},{y:1995,a:0.45},{y:1998,a:0.63},
+  {y:2000,a:0.42},{y:2005,a:0.69},{y:2010,a:0.72},{y:2015,a:0.87},{y:2016,a:1.01},
+  {y:2018,a:0.85},{y:2020,a:1.02},{y:2023,a:1.17},{y:2024,a:1.28},{y:2025,a:1.19}
+];
+
+const DEGRAD_SERIES = [{y:2000,p:24},{y:2024,p:40}]; // FAO 2015 (1981-2003 avg) -> UNCCD 2024
+
+const DISASTER_TYPES = [
+  {name:"Tropical cyclones", total:1543.2, avg:23.0, count:67, note:"Costliest and deadliest U.S. disaster type since 1980 — 7,211 deaths. Helene + Milton cost ~$94B in 2024 alone.", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"},
+  {name:"Severe storms", total:514.3, avg:2.5, count:203, note:"Tornadoes, hail and wind outbreaks — the most frequent U.S. disaster type, though the least costly per event.", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"},
+  {name:"Drought", total:367.5, avg:null, count:null, note:"NOAA assesses drought at seasonal / regional scale rather than as discrete events.", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"},
+  {name:"Inland flooding", total:203.0, avg:4.7, count:45, note:"Second-most frequent U.S. disaster type after tropical cyclones.", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"},
+  {name:"Wildfire", total:148, avg:null, count:null, note:"2017–2021 alone caused >$90B (2024$) — more than all 18 other wildfire events since 1980 combined ($58B).", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"},
+  {name:"Winter storms & freezes", total:null, avg:3.9, count:null, note:"Winter storms average $4.1B/event; freezes average $3.7B/event.", src:"NOAA NCEI Billion-Dollar Disasters, 1980–2024"}
+];
+
+const COST_MARKERS = [
+  {name:"Hurricane Helene (2024)", lat:29.9, lon:-83.6, cost:"$56B global loss", note:"2024's costliest single weather disaster worldwide.", src:"Munich Re, Jan 2025"},
+  {name:"Hurricane Milton (2024)", lat:27.9, lon:-82.4, cost:"$38B ($25B insured)", note:"Struck Florida weeks after Helene.", src:"Munich Re, Jan 2025"},
+  {name:"Valencia floods, Spain (2024)", lat:39.47, lon:-0.38, cost:"$11B", note:"A year's worth of rain fell in a single day — the deadliest European natural disaster in 50 years.", src:"Munich Re, Jan 2025"},
+  {name:"Western U.S. wildfires (2017–21)", lat:38, lon:-121, cost:">$90B (2024$)", note:"More damage than all 18 other U.S. wildfire billion-dollar events since 1980 combined.", src:"NOAA NCEI / Climate.gov"}
+];
+
+const OCCUPATIONS = [
+  {name:"Telemarketers", score:96, cat:"Very high", note:"96.25% of tasks are automatable with current or near-future AI — the single highest score of any occupation studied.", src:"Wharton Budget Model AI-exposure dataset via EDsmart, 2025"},
+  {name:"Order Clerks", score:96, cat:"Very high", note:"95.53% task exposure.", src:"Wharton Budget Model / EDsmart, 2025"},
+  {name:"Insurance Claims & Policy Clerks", score:95, cat:"Very high", note:"95.19% task exposure — among the highest of any occupation studied.", src:"Wharton Budget Model / EDsmart, 2025"},
+  {name:"Bookkeeping & Accounting Clerks", score:95, cat:"Very high", note:"95.17% task exposure; AI can already reconcile and categorize transactions at scale.", src:"Wharton Budget Model / EDsmart, 2025"},
+  {name:"Payroll & Timekeeping Clerks", score:94, cat:"Very high", note:"94.09% task exposure.", src:"Wharton Budget Model / EDsmart, 2025"},
+  {name:"Medical Records Specialists", score:94, cat:"Very high", note:"93.53% task exposure as document-processing AI matures.", src:"Wharton Budget Model / EDsmart, 2025"},
+  {name:"Data Entry Keyers", score:90, cat:"Very high", note:"Manual data entry carries an estimated 95% automation risk; up to 7.5M data-entry/admin roles could be affected by 2027.", src:"SSRN working paper, cited in DesignRush, 2026"},
+  {name:"Customer Service Representatives", score:88, cat:"Very high", note:"Rated 92/100 for AI exposure — the most automatable of 25 occupations studied; ~2.8M US workers hold this job today.", src:"AgentLocker AI Jobs Automation Index, 2025"},
+  {name:"Office & Administrative Support (avg.)", score:80, cat:"High", note:"54% of the 50 most-exposed U.S. occupations are office/admin roles, together representing ~$3T in annual worker compensation.", src:"EDsmart, 2025; AgentLocker, 2025"},
+  {name:"Computer Programmers", score:55, cat:"Moderate", note:"Flagged as a 'concerning pattern' occupation — high AI exposure combined with already-contracting demand.", src:"AgentLocker AI Jobs Automation Index, 2025"},
+  {name:"Food Preparation & Service", score:15, cat:"Low", note:"Projected to add hundreds of thousands of positions through 2033 despite AI in adjacent back-of-house tasks.", src:"DesignRush AI job-displacement analysis, 2026"},
+  {name:"Personal Care, Teaching & Coaching", score:12, cat:"Very low", note:"Roughly 23% of the entire workforce sits in this least-exposed, human-contact-dependent category.", src:"Pew Research Center, cited in DesignRush, 2026"},
+  {name:"Skilled Trades (electricians, plumbers, technicians)", score:10, cat:"Very low", note:"Chronic labor shortages and unpredictable physical work make these roles unlikely to be fully automated.", src:"DesignRush AI job-displacement analysis, 2026"},
+  {name:"Registered Nurses", score:5, cat:"Very low", note:"One of 65 occupations identified with a 0% modeled chance of automation; demand projected to grow ~46% by 2031.", src:"US Career Institute occupational analysis, 2025"}
+].sort((a,b)=>b.score-a.score);
+
+const AI_MARKERS = [
+  {name:"North America", lat:45, lon:-100, prep:0.74, note:"Highest score on the IMF's AI Preparedness Index — strong digital infrastructure, human-capital policy and regulation.", src:"IMF AI Preparedness Index"},
+  {name:"Sub-Saharan Africa", lat:2, lon:20, prep:0.34, note:"Among the least-prepared regions globally for the AI transition, per the IMF's index.", src:"IMF AI Preparedness Index"}
+];
+
+const AI_MACRO = [
+  {k:"Jobs displaced by 2030", v:"92M", n:"Globally, against 170M newly created — a net +78M (WEF Future of Jobs 2025)."},
+  {k:"Full-time jobs exposed", v:"~300M", n:"Goldman Sachs / IMF estimate of FTE jobs globally exposed to generative AI."},
+  {k:"Global GDP uplift (10 yr)", v:"+7% (~$7T)", n:"Goldman Sachs' central estimate if generative AI adoption matches past general-purpose technologies."},
+  {k:"Wage premium, AI-skilled", v:"+56%", n:"PwC's 2025 Global AI Jobs Barometer, vs. peers in the same role without AI skills."},
+  {k:"Workers needing to switch fields", v:"375M", n:"~14% of the global workforce, by 2030 (McKinsey, 2025)."}
+];
+
+/* =========================================================================
+   MAP SETUP
+   ========================================================================= */
+const svg = d3.select("#map");
+const VBW = 1600, VBH = 760;
+const projection = d3.geoNaturalEarth1().scale(300).translate([VBW/2, VBH/2+30]);
+const path = d3.geoPath(projection);
+
+svg.insert("path",":first-child").attr("class","sphere").attr("d", path({type:"Sphere"}));
+
+let countries, world;
+let currentMode = "enso";
+let selected = null;
+
+d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then(topo => {
+  world = topo;
+  countries = topojson.feature(topo, topo.objects.countries).features;
+  svg.append("path").attr("class","graticule").attr("d", path(d3.geoGraticule10()));
+  svg.selectAll("path.landmass").data(countries).join("path")
+    .attr("class","landmass interactive").attr("d", path)
+    .on("click", (ev,d) => showCountry(d));
+
+  drawMarkerLayer("seaLayer", SEA_MARKERS, "#0E9E92", showSeaMarker, d=>4+ (d.elevGate<0.5?1:0));
+  drawMarkerLayer("landLayer", DESERT_HOTSPOTS, "#B9781E", showDesertMarker, d=>4+d.level*7, true);
+  drawMarkerLayer("costLayer", COST_MARKERS, "#1E9E5A", showCostMarker, ()=>5);
+  drawMarkerLayer("aiLayer", AI_MARKERS, "#6D4FE0", showAIMarker, d=>6+d.prep*10);
+
+  applyMode("enso", true);
+}).catch(err=>{
+  console.error(err);
+  document.getElementById("ctrlDesc").textContent = "Map data failed to load — check your connection and reload.";
+});
+
+function drawMarkerLayer(cls, data, color, onClick, rFn, translucent){
+  const g = svg.append("g").attr("class",cls).style("display","none");
+  const sel = g.selectAll("g.marker").data(data).join("g").attr("class","marker")
+    .attr("transform", d => { const p = projection([d.lon,d.lat]); return p?`translate(${p[0]},${p[1]})`:null; })
+    .on("click", (ev,d)=> onClick(d));
+  sel.append("circle").attr("class","pulse").attr("r",5).attr("fill",color);
+  sel.append("circle").attr("r", rFn).attr("fill",color).attr("opacity", translucent?0.5:1).attr("stroke","#fff").attr("stroke-width",1);
+  sel.append("text").attr("x", d=>7+ (rFn(d)||4)).attr("y",3).text(d=>d.name);
+}
+
+/* =========================================================================
+   COLOR SCALES
+   ========================================================================= */
+const tempScale = d3.scaleLinear().domain([0,1.2,3.5]).range(["#F4EBD0","#E8542E","#8B1E1E"]).clamp(true);
+
+function ensoColor(sd, zone){
+  if(!zone || zone==="mixed") return "#DCE6E2";
+  const intensity = Math.min(Math.abs(sd)/6, 1);
+  const sign = sd>=0 ? 1 : -1;
+  let hueDry = sign>0 ? d3.interpolateRgb("#DCE6E2","#E8542E") : d3.interpolateRgb("#DCE6E2","#1E6FE0");
+  let hueWet = sign>0 ? d3.interpolateRgb("#DCE6E2","#1E6FE0") : d3.interpolateRgb("#DCE6E2","#E8542E");
+  let hueWarm = sign>0 ? d3.interpolateRgb("#DCE6E2","#F0A93C") : d3.interpolateRgb("#DCE6E2","#7C5CE0");
+  if(zone==="dry"||zone==="dry-mon") return hueDry(intensity);
+  if(zone==="wet") return hueWet(intensity);
+  if(zone==="warm") return hueWarm(intensity);
+  return "#DCE6E2";
+}
+function ampFactor(lat){ return 1 + 2.6*Math.pow(Math.abs(lat)/90, 2.1); }
+
+/* =========================================================================
+   MODE SWITCHING
+   ========================================================================= */
+const MODES = {
+  enso:{ accent:"#E8542E", title:"El Niño / La Niña",
+    ctrlTitle:"Standard deviations from the Niño 3.4 mean",
+    ctrlDesc:"Drag to move through El Niño / La Niña history — up to ±6 SD, calibrated to NOAA's category thresholds.",
+    min:-6,max:6,step:0.1,default:4, legend:"linear-gradient(90deg,#1E6FE0,#E7ECE9,#E8542E)", legLeft:"La Niña", legRight:"El Niño"},
+  temp:{ accent:"#D62828", title:"Global Temperature Rise",
+    ctrlTitle:"Global annual mean anomaly (NASA GISTEMP, vs. 1951–1980)",
+    ctrlDesc:"Drag from 1980 to 2025. Colour shows a latitude-scaled rendering of documented polar amplification, not gridded satellite data.",
+    min:1980,max:2025,step:1,default:2025, legend:"linear-gradient(90deg,#F4EBD0,#E8542E,#8B1E1E)", legLeft:"Cooler", legRight:"Hotter"},
+  sea:{ accent:"#0E9E92", title:"Sea-Level Rise",
+    ctrlTitle:"Global mean sea-level rise scenario (IPCC AR6)",
+    ctrlDesc:"0–3 m — spans IPCC's low-emissions 2100 range through its extreme ice-sheet-instability storyline for 2150.",
+    min:0,max:3,step:0.05,default:1, legend:"linear-gradient(90deg,#E7ECE9,#0E9E92)", legLeft:"0 m", legRight:"3 m"},
+  land:{ accent:"#B9781E", title:"Desertification & Land Degradation",
+    ctrlTitle:"Global land degradation, interpolated 2000 → 2024",
+    ctrlDesc:"FAO's ~24% (1981–2003) to UNCCD's 40% (2024) — a straight line between two documented surveys, not annual data.",
+    min:2000,max:2024,step:1,default:2024, legend:"linear-gradient(90deg,#E7ECE9,#B9781E)", legLeft:"2000", legRight:"2024"},
+  cost:{ accent:"#1E9E5A", title:"Economic Cost of Climate Disasters",
+    ctrlTitle:"U.S. disaster type (NOAA NCEI, 1980–2024, inflation-adjusted)",
+    ctrlDesc:"Drag through disaster types to compare 44 years of cumulative U.S. damage. Markers show named 2024 global events.",
+    min:0,max:5,step:1,default:0, legend:"linear-gradient(90deg,#E7ECE9,#1E9E5A)", legLeft:"Lower cost", legRight:"Higher cost"},
+  ai:{ accent:"#6D4FE0", title:"AI & the Labor Market",
+    ctrlTitle:"AI task-exposure score by occupation",
+    ctrlDesc:"Drag to explore occupations from least to most exposed to AI automation (Wharton Budget Model / EDsmart, 2025).",
+    min:0,max:100,step:1,default:90, legend:"linear-gradient(90deg,#E7ECE9,#6D4FE0)", legLeft:"Low exposure", legRight:"High exposure"}
+};
+
+function ensoClassify(sd){
+  const c = sd*0.5;
+  const mag = Math.abs(c);
+  let cls = "Neutral";
+  if(mag>=2.0) cls="Very strong"; else if(mag>=1.5) cls="Strong"; else if(mag>=1.0) cls="Moderate"; else if(mag>=0.5) cls="Weak";
+  const phase = c>0 ? "El Niño" : (c<0 ? "La Niña" : "Neutral");
+  return {c, cls, phase};
+}
+
+function setAccent(hex){ document.documentElement.style.setProperty("--accent-bg", hex); }
+
+function applyMode(mode, first){
+  currentMode = mode;
+  const m = MODES[mode];
+  setAccent(m.accent);
+  document.getElementById("modeTitle").textContent = m.title;
+  document.getElementById("ctrlTitle").textContent = m.ctrlTitle;
+  document.getElementById("ctrlDesc").textContent = m.ctrlDesc;
+  document.getElementById("legendBar").style.background = m.legend;
+  document.getElementById("legLeft").textContent = m.legLeft;
+  document.getElementById("legRight").textContent = m.legRight;
+
+  const slider = document.getElementById("mainSlider");
+  slider.min = m.min; slider.max = m.max; slider.step = m.step; slider.value = m.default;
+  document.getElementById("sliderMinLbl").textContent =
+    mode==="temp" ? m.min : mode==="sea" ? "0 m" : mode==="land" ? m.min : mode==="cost" ? DISASTER_TYPES[0].name : mode==="ai" ? "0" : `${m.min} SD`;
+  document.getElementById("sliderMaxLbl").textContent =
+    mode==="temp" ? m.max : mode==="sea" ? "3 m" : mode==="land" ? m.max : mode==="cost" ? DISASTER_TYPES[DISASTER_TYPES.length-1].name : mode==="ai" ? "100" : `+${m.max} SD`;
+
+  document.querySelectorAll(".dock button[data-mode]").forEach(b=>b.classList.toggle("active", b.dataset.mode===mode));
+
+  ["seaLayer","landLayer","costLayer","aiLayer"].forEach(cls=>{
+    const wants = (cls==="seaLayer"&&mode==="sea")||(cls==="landLayer"&&mode==="land")||(cls==="costLayer"&&mode==="cost")||(cls==="aiLayer"&&mode==="ai");
+    svg.select("."+cls).style("display", wants ? null : "none");
+  });
+
+  closeSheet();
+  render(parseFloat(slider.value));
+
+  if(mode==="ai") showAISnapshot();
+  if(mode==="cost") showCostSnapshot();
+}
+
+function render(val){
+  if(!countries) return;
+  if(currentMode==="enso"){
+    const {c,cls,phase} = ensoClassify(val);
+    document.getElementById("statLabel").textContent = "Niño 3.4 anomaly";
+    document.getElementById("statValue").textContent = (val>=0?"+":"")+val.toFixed(1)+" SD";
+    document.getElementById("statValue").style.color = val>=0 ? "var(--enso-hot)" : "var(--enso-cold)";
+    document.getElementById("statSub").textContent = `≈ ${c>=0?"+":""}${c.toFixed(2)}°C · ${cls} ${phase!=="Neutral"?phase:""}`.trim();
+    document.getElementById("sliderVal").textContent = (val>=0?"+":"")+val.toFixed(1);
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill", d => ensoColor(val, ENSO_ZONES[d.properties.name]));
+  } else if(currentMode==="temp"){
+    const anomaly = interpSeries(TEMP_SERIES, val, "y","a");
+    document.getElementById("statLabel").textContent = `${Math.round(val)} global mean anomaly`;
+    document.getElementById("statValue").textContent = "+"+anomaly.toFixed(2)+"°C";
+    document.getElementById("statValue").style.color = "var(--temp-hi)";
+    document.getElementById("statSub").textContent = "vs. 1951–1980 baseline (NASA GISS)";
+    document.getElementById("sliderVal").textContent = Math.round(val);
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill", d => tempScale(anomaly*ampFactor(d3.geoCentroid(d)[1])));
+  } else if(currentMode==="sea"){
+    document.getElementById("statLabel").textContent = "Sea-level scenario";
+    document.getElementById("statValue").textContent = "+"+val.toFixed(2)+" m";
+    document.getElementById("statValue").style.color = "var(--sea)";
+    document.getElementById("statSub").textContent = val<=0.55?"Within IPCC 2100 range":(val<=1.01?"High-emissions 2100 range":"2150+ / low-likelihood high-impact range");
+    document.getElementById("sliderVal").textContent = val.toFixed(2);
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill","#DCE6E2");
+    svg.selectAll(".seaLayer .marker circle:not(.pulse)").attr("fill", d => val>=d.elevGate ? "#E8542E" : "#0E9E92");
+    svg.selectAll(".seaLayer .marker").classed("enabled", d => val>=d.elevGate);
+  } else if(currentMode==="land"){
+    const pct = interpSeries(DEGRAD_SERIES, val, "y","p");
+    document.getElementById("statLabel").textContent = `${Math.round(val)} land degraded`;
+    document.getElementById("statValue").textContent = pct.toFixed(0)+"%";
+    document.getElementById("statValue").style.color = "var(--land)";
+    document.getElementById("statSub").textContent = "Interpolated from FAO 2015 & UNCCD 2024";
+    document.getElementById("sliderVal").textContent = Math.round(val);
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill","#E9EFEA");
+    svg.selectAll(".landLayer .marker").classed("enabled", true);
+  } else if(currentMode==="cost"){
+    const idx = Math.round(val);
+    const dt = DISASTER_TYPES[idx];
+    document.getElementById("statLabel").textContent = dt.name+" · U.S. total, 1980–2024";
+    document.getElementById("statValue").textContent = "$"+dt.total.toFixed(1)+"B";
+    document.getElementById("statValue").style.color = "var(--cost)";
+    document.getElementById("statSub").textContent = dt.avg ? `avg. $${dt.avg.toFixed(1)}B/event${dt.count?` · ${dt.count} events`:""}` : "assessed at seasonal/regional scale";
+    document.getElementById("sliderVal").textContent = dt.name.split(" ")[0];
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill","#E9EFEA");
+    svg.selectAll(".costLayer .marker").classed("enabled", true);
+  } else if(currentMode==="ai"){
+    const score = Math.round(val);
+    let nearest = OCCUPATIONS[0];
+    OCCUPATIONS.forEach(o=>{ if(Math.abs(o.score-score) < Math.abs(nearest.score-score)) nearest = o; });
+    document.getElementById("statLabel").textContent = "AI task-exposure score";
+    document.getElementById("statValue").textContent = score;
+    document.getElementById("statValue").style.color = "var(--ai)";
+    document.getElementById("statSub").textContent = nearest.name+" · "+nearest.cat;
+    document.getElementById("sliderVal").textContent = score;
+    svg.selectAll("path.landmass").transition().duration(120).attr("fill","#E9EFEA");
+    svg.selectAll(".aiLayer .marker").classed("enabled", true);
+  }
+}
+
+function interpSeries(series, x, xk, yk){
+  if(x<=series[0][xk]) return series[0][yk];
+  const last = series[series.length-1];
+  if(x>=last[xk]) return last[yk];
+  for(let i=0;i<series.length-1;i++){
+    if(x>=series[i][xk] && x<=series[i+1][xk]){
+      const t=(x-series[i][xk])/(series[i+1][xk]-series[i][xk]);
+      return series[i][yk] + t*(series[i+1][yk]-series[i][yk]);
+    }
+  }
+  return last[yk];
+}
+
+/* =========================================================================
+   INTERACTIONS
+   ========================================================================= */
+document.getElementById("mainSlider").addEventListener("input", e => render(parseFloat(e.target.value)));
+document.querySelectorAll(".dock button[data-mode]").forEach(btn=> btn.addEventListener("click", ()=> applyMode(btn.dataset.mode)));
+
+document.getElementById("infoBtn").addEventListener("click", ()=> document.getElementById("modalBg").classList.add("open"));
+document.getElementById("closeModalBtn").addEventListener("click", ()=> document.getElementById("modalBg").classList.remove("open"));
+document.getElementById("modalBg").addEventListener("click", e=>{ if(e.target.id==="modalBg") e.currentTarget.classList.remove("open"); });
+
+document.getElementById("predictBtn").addEventListener("click", ()=>{ document.getElementById("predictBg").classList.add("open"); runPredict(); });
+document.getElementById("closePredictBtn").addEventListener("click", ()=> document.getElementById("predictBg").classList.remove("open"));
+document.getElementById("predictBg").addEventListener("click", e=>{ if(e.target.id==="predictBg") e.currentTarget.classList.remove("open"); });
+document.getElementById("pEnso").addEventListener("input", runPredict);
+document.getElementById("pWarm").addEventListener("input", runPredict);
+
+document.getElementById("enterBtn").addEventListener("click", ()=> document.getElementById("intro").classList.add("hide"));
+document.getElementById("sheetClose").addEventListener("click", closeSheet);
+
+function closeSheet(){
+  document.getElementById("sheet").classList.remove("open");
+  document.getElementById("sheetList").innerHTML = "";
+  svg.selectAll("path.landmass").classed("selected", false);
+  selected = null;
+}
+function openSheet(){ document.getElementById("sheet").classList.add("open"); }
+
+function showCountry(d){
+  const name = d.properties.name;
+  svg.selectAll("path.landmass").classed("selected", x => x===d);
+  selected = d;
+  const tag = document.getElementById("sheetTag"), stats = document.getElementById("sheetStats"), text = document.getElementById("sheetText"), cite = document.getElementById("sheetCite");
+  document.getElementById("sheetTitle").textContent = name;
+  document.getElementById("sheetList").innerHTML = "";
+  stats.innerHTML = "";
+
+  if(currentMode==="enso"){
+    const zone = ENSO_ZONES[name];
+    tag.textContent = zone ? ENSO_LABEL[zone].split(" ")[0].toUpperCase() : "NEUTRAL SIGNAL";
+    tag.style.background = zone==="dry"||zone==="dry-mon" ? "rgba(232,84,46,0.16)" : zone==="wet" ? "rgba(30,111,224,0.14)" : "rgba(20,45,45,0.08)";
+    tag.style.color = zone==="dry"||zone==="dry-mon" ? "#B8391B" : zone==="wet" ? "#1750A8" : "var(--ink-dim)";
+    text.textContent = zone ? ENSO_NOTE[zone] : "No strong, well-documented national-level ENSO teleconnection is highlighted for this country in this atlas.";
+    cite.textContent = "Source: NOAA Climate Prediction Center / IRI ENSO impact composites.";
+  } else if(currentMode==="temp"){
+    const lat = d3.geoCentroid(d)[1];
+    const val = document.getElementById("mainSlider").value;
+    const anomaly = interpSeries(TEMP_SERIES, parseFloat(val), "y","a");
+    const local = anomaly*ampFactor(lat);
+    tag.textContent = "TEMPERATURE"; tag.style.background="rgba(214,40,40,0.14)"; tag.style.color="#A81E1E";
+    stats.innerHTML = `<dt>Latitude</dt><dd>${lat.toFixed(1)}°</dd><dt>Illustrative local anomaly</dt><dd>+${local.toFixed(2)}°C</dd>`;
+    text.textContent = "A latitude-scaled rendering of the documented pattern that higher latitudes warm faster than the global mean (polar amplification) — not a gridded per-country measurement.";
+    cite.textContent = "Global mean: NASA GISS GISTEMP v4. Amplification: IPCC AR6 WGI Ch.2 / NOAA Arctic Report Card.";
+  } else if(currentMode==="land"){
+    tag.textContent = "LAND"; tag.style.background="rgba(185,120,30,0.16)"; tag.style.color="#8A5714";
+    text.textContent = "Tap a highlighted hotspot marker for region-specific detail — whole-country fills are intentionally neutral, since UNCCD reports degradation sub-nationally.";
+    cite.textContent = "Source: UNCCD Global Land Outlook 2 (2024).";
+  } else if(currentMode==="sea"){
+    tag.textContent = "SEA LEVEL"; tag.style.background="rgba(14,158,146,0.14)"; tag.style.color="#0B6E66";
+    text.textContent = "Tap a coastal marker to see documented low-elevation exposure for that location.";
+    cite.textContent = "Source: IPCC AR6 WGII; NOAA / Climate Central low-elevation coastal-zone research.";
+  } else if(currentMode==="cost"){
+    tag.textContent = "ECONOMIC COST"; tag.style.background="rgba(30,158,90,0.14)"; tag.style.color="#146B3C";
+    text.textContent = "Tap a marker to see a named 2024 disaster's documented cost, or use the slider to compare U.S. disaster types since 1980.";
+    cite.textContent = "Source: NOAA NCEI Billion-Dollar Disasters; Munich Re.";
+  } else if(currentMode==="ai"){
+    tag.textContent = "AI & LABOR"; tag.style.background="rgba(109,79,224,0.14)"; tag.style.color="#4B33A8";
+    text.textContent = "Tap a marker to see regional AI-readiness, or use the slider to browse occupations by AI task-exposure.";
+    cite.textContent = "Source: IMF AI Preparedness Index; Wharton Budget Model / EDsmart.";
+  }
+  openSheet();
+}
+
+function showSeaMarker(d){
+  const val = parseFloat(document.getElementById("mainSlider").value);
+  const tag = document.getElementById("sheetTag");
+  document.getElementById("sheetTitle").textContent = d.name;
+  document.getElementById("sheetList").innerHTML = "";
+  tag.textContent = val>=d.elevGate ? "AT RISK AT THIS LEVEL" : "NOT YET AT RISK";
+  tag.style.background = val>=d.elevGate ? "rgba(232,84,46,0.16)" : "rgba(14,158,146,0.14)";
+  tag.style.color = val>=d.elevGate ? "#B8391B" : "#0B6E66";
+  document.getElementById("sheetStats").innerHTML = `<dt>Population exposure</dt><dd>${d.pop}</dd><dt>Documented exposure gate</dt><dd>~${d.elevGate} m</dd>`;
+  document.getElementById("sheetText").textContent = d.note;
+  document.getElementById("sheetCite").textContent = "Source: IPCC AR6 WGII; NOAA / Climate Central low-elevation coastal-zone datasets.";
+  openSheet();
+}
+function showDesertMarker(d){
+  document.getElementById("sheetTitle").textContent = d.name;
+  document.getElementById("sheetList").innerHTML = "";
+  const tag = document.getElementById("sheetTag");
+  tag.textContent = "DEGRADATION HOTSPOT"; tag.style.background="rgba(185,120,30,0.16)"; tag.style.color="#8A5714";
+  document.getElementById("sheetStats").innerHTML = `<dt>Reported severity</dt><dd>${Math.round(d.level*100)}%</dd>`;
+  document.getElementById("sheetText").textContent = d.note;
+  document.getElementById("sheetCite").textContent = "Source: UNCCD Global Land Outlook 2 (2024) regional findings.";
+  openSheet();
+}
+function showCostMarker(d){
+  document.getElementById("sheetTitle").textContent = d.name;
+  document.getElementById("sheetList").innerHTML = "";
+  const tag = document.getElementById("sheetTag");
+  tag.textContent = "2024 EVENT"; tag.style.background="rgba(30,158,90,0.14)"; tag.style.color="#146B3C";
+  document.getElementById("sheetStats").innerHTML = `<dt>Documented cost</dt><dd>${d.cost}</dd>`;
+  document.getElementById("sheetText").textContent = d.note;
+  document.getElementById("sheetCite").textContent = "Source: "+d.src+".";
+  openSheet();
+}
+function showAIMarker(d){
+  document.getElementById("sheetTitle").textContent = d.name;
+  document.getElementById("sheetList").innerHTML = "";
+  const tag = document.getElementById("sheetTag");
+  tag.textContent = "AI PREPAREDNESS"; tag.style.background="rgba(109,79,224,0.14)"; tag.style.color="#4B33A8";
+  document.getElementById("sheetStats").innerHTML = `<dt>IMF Preparedness Index</dt><dd>${d.prep.toFixed(2)}</dd>`;
+  document.getElementById("sheetText").textContent = d.note;
+  document.getElementById("sheetCite").textContent = "Source: "+d.src+".";
+  openSheet();
+}
+function showAISnapshot(){
+  document.getElementById("sheetTitle").textContent = "Global AI labor snapshot";
+  const tag = document.getElementById("sheetTag");
+  tag.textContent = "MACRO VIEW"; tag.style.background="rgba(109,79,224,0.14)"; tag.style.color="#4B33A8";
+  document.getElementById("sheetStats").innerHTML = "";
+  document.getElementById("sheetList").innerHTML = AI_MACRO.map(m=>`<li><span>${m.k}</span><b>${m.v}</b></li>`).join("");
+  document.getElementById("sheetText").textContent = "Drag the slider below to browse individual occupations, from least to most exposed. Tap the two map markers for regional AI-readiness.";
+  document.getElementById("sheetCite").textContent = "Sources: WEF Future of Jobs 2025; Goldman Sachs; IMF; PwC; McKinsey — full detail in the (i) Sources panel.";
+  openSheet();
+}
+function showCostSnapshot(){
+  document.getElementById("sheetTitle").textContent = "Global disaster-cost snapshot, 2024";
+  const tag = document.getElementById("sheetTag");
+  tag.textContent = "MACRO VIEW"; tag.style.background="rgba(30,158,90,0.14)"; tag.style.color="#146B3C";
+  document.getElementById("sheetStats").innerHTML = "";
+  document.getElementById("sheetList").innerHTML = [
+    {k:"Global losses, 2024",v:"$320B"},{k:"Insured share",v:"$140B"},
+    {k:"Weather-related share",v:"93%"},{k:"U.S. billion-dollar disasters",v:"27 events / $182.7B"}
+  ].map(m=>`<li><span>${m.k}</span><b>${m.v}</b></li>`).join("");
+  document.getElementById("sheetText").textContent = "Drag the slider to compare cumulative U.S. disaster-type costs since 1980. Tap a map marker for a named 2024 event.";
+  document.getElementById("sheetCite").textContent = "Sources: Munich Re (Jan 2025); NOAA NCEI Billion-Dollar Disasters.";
+  openSheet();
+}
+
+/* =========================================================================
+   PREDICTOR
+   ========================================================================= */
+function runPredict(){
+  const sd = parseFloat(document.getElementById("pEnso").value);
+  const warmAdd = parseFloat(document.getElementById("pWarm").value);
+  document.getElementById("pEnsoLbl").textContent = (sd>=0?"+":"")+sd.toFixed(1)+" SD";
+  document.getElementById("pWarmLbl").textContent = "+"+warmAdd.toFixed(1)+"°C";
+
+  const ensoMag = Math.abs(sd);
+  const totalWarm = 1.19 + warmAdd;
+
+  // Famine / food insecurity — interpolated across documented anchor points (people, millions)
+  const famineAnchors = [{x:0,y:0},{x:1,y:2},{x:2,y:8},{x:3,y:20},{x:4,y:38},{x:5.2,y:80},{x:6,y:108}];
+  let famine = interpSeries(famineAnchors, ensoMag, "x","y");
+  famine = famine * (1 + warmAdd*0.12);
+
+  // Drought / degraded land — UNCCD baseline 100 Mha/yr, scaled up with ENSO + warming
+  const droughtLand = 100 + ensoMag*8 + warmAdd*35;
+
+  // Economic cost — Munich Re 2024 baseline ($320B), scaled
+  const econ = 320 * (1 + ensoMag*0.12) * (1 + warmAdd*0.25);
+
+  // Disease risk — qualitative, anchored to Lancet Countdown documented trend
+  let diseaseLabel, diseaseNote;
+  if(totalWarm < 1.3){
+    diseaseLabel = "Documented baseline";
+    diseaseNote = "Dengue transmission suitability is already +46.3% vs. the 1951–60 baseline (Lancet Countdown, 2024).";
+  } else if(totalWarm < 2.0){
+    diseaseLabel = "Elevated & expanding";
+    diseaseNote = "IPCC AR6 WGII: continued warming is expected to extend vector-borne disease range poleward and to higher altitudes.";
+  } else {
+    diseaseLabel = "High — range expansion";
+    diseaseNote = "At this warming level, IPCC AR6 flags likely further expansion of malaria/dengue-suitable zones into currently temperate and highland regions (medium confidence).";
+  }
+
+  const out = document.getElementById("predictOut");
+  out.innerHTML = `
+    <div class="outCard"><div class="k">FOOD INSECURITY</div><div class="v">~${famine.toFixed(0)}M people</div>
+      <div class="n">Interpolated between the 1997–98 and 2015–16 El Niño food-security anchors (WFP/FAO), scaled slightly upward with added warming.</div></div>
+    <div class="outCard"><div class="k">LAND DEGRADED / YEAR</div><div class="v">~${droughtLand.toFixed(0)}M ha</div>
+      <div class="n">Scaled up from UNCCD's documented ~100M ha/yr (2015–19) baseline as ENSO intensity and warming increase.</div></div>
+    <div class="outCard"><div class="k">ANNUAL ECONOMIC LOSS</div><div class="v">~$${econ.toFixed(0)}B</div>
+      <div class="n">Scaled from Munich Re's $320B global 2024 baseline. At high ENSO intensity, multi-year losses can compound toward the $2–6T tallies documented for 1997–98 / 2015–16.</div></div>
+    <div class="outCard"><div class="k">DISEASE RISK</div><div class="v">${diseaseLabel}</div>
+      <div class="n">${diseaseNote}</div></div>
+  `;
+}
+</script>
 </body>
 </html>
